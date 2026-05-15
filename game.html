@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Line Cook</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --panel: #0f3460;
+  --amber: #f5a623;
+  --green: #27ae60;
+  --red: #e74c3c;
+  --yellow: #f39c12;
+  --text: #eee;
+  --muted: #778;
+}
+
+/* ── SVG ICONS ─────────────────────────── */
+.svg-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
+  vertical-align: -0.125em;
+  margin: 0 2px;
+}
+.svg-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.slot-emoji svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg); color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden; user-select: none;
+}
+
+/* ── SCREENS ─────────────────────────────── */
+.screen {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--bg); z-index: 100;
+  gap: 18px; padding: 24px; text-align: center;
+}
+.screen.hidden { display: none !important; }
+
+#screen-start h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900; color: var(--amber);
+  text-shadow: 0 0 40px rgba(245,166,35,.45);
+}
+.subtitle { font-size: .95rem; color: var(--muted); max-width: 460px; line-height: 1.6; }
+
+.recipe-ref {
+  background: var(--surface); border: 1px solid var(--panel);
+  border-radius: 12px; padding: 14px 20px;
+  max-width: 520px; width: 100%; text-align: left;
+}
+.recipe-ref h3 { color: var(--amber); margin-bottom: 10px; font-size: .8rem; text-transform: uppercase; letter-spacing: 1px; }
+.recipe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
+.recipe-item { font-size: .78rem; color: #ccc; line-height: 1.7; }
+.recipe-item .hint { color: var(--muted); font-size: .72rem; }
+.sg { color: #ff7755; } .ss { color: #ffaa55; } .sf { color: #ffcc44; } .sl { color: #55cc77; }
+
+.btn-primary {
+  background: var(--amber); color: #111;
+  border: none; padding: 12px 44px;
+  font-size: 1.1rem; font-weight: 700;
+  border-radius: 8px; cursor: pointer;
+  transition: transform .1s, box-shadow .1s;
+}
+.btn-primary:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(245,166,35,.4); }
+
+/* ── END SCREEN ─────────────────────────── */
+#screen-end h1 { font-size: 2.2rem; color: var(--amber); }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 340px; width: 100%; }
+.stat-box {
+  background: var(--surface); border: 1px solid var(--panel);
+  border-radius: 10px; padding: 14px;
+}
+.stat-box .sv { font-size: 1.8rem; font-weight: 700; color: var(--amber); }
+.stat-box .sl2 { font-size: .75rem; color: var(--muted); margin-top: 3px; }
+
+/* ── GAME LAYOUT ─────────────────────────── */
+#game {
+  width: 100%; height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 5px; padding: 5px;
+}
+
+/* ── HEADER ─────────────────────────────── */
+#header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); border-radius: 8px;
+  padding: 6px 14px; border: 1px solid var(--panel);
+  gap: 8px;
+}
+.hstat { display: flex; flex-direction: column; align-items: center; min-width: 52px; }
+.hstat .v {
+  font-size: 1.3rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--amber);
+}
+.hstat .l { font-size: .62rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+#timer-display.urgent { color: var(--red) !important; animation: pulse-red 1s infinite; }
+@keyframes pulse-red { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+#combo-container { min-width: 62px; }
+.combo-value {
+  color: var(--yellow) !important;
+  text-shadow: 0 0 12px rgba(243,156,18,.6);
+  animation: combo-glow .6s ease-in-out infinite;
+}
+@keyframes combo-glow {
+  0%, 100% { text-shadow: 0 0 12px rgba(243,156,18,.6); transform: scale(1); }
+  50% { text-shadow: 0 0 20px rgba(243,156,18,.9); transform: scale(1.05); }
+}
+
+.recipe-toggle-btn {
+  background: var(--panel); border: none; color: var(--text);
+  padding: 5px 10px; border-radius: 6px; cursor: pointer;
+  font-size: .72rem; white-space: nowrap;
+}
+.recipe-toggle-btn:hover { background: #1a4a80; }
+
+/* ── TICKET RAIL ─────────────────────────── */
+#ticket-rail {
+  display: flex; gap: 7px; align-items: flex-start;
+  overflow-x: auto; padding: 5px;
+  background: var(--surface); border-radius: 8px;
+  border: 1px solid var(--panel); min-height: 118px;
+}
+#ticket-rail::-webkit-scrollbar { height: 3px; }
+#ticket-rail::-webkit-scrollbar-thumb { background: var(--panel); }
+.rail-empty-hint { align-self: center; color: var(--muted); font-size: .8rem; padding: 0 8px; flex-shrink: 0; }
+
+.ticket {
+  flex-shrink: 0; width: 164px;
+  background: var(--bg); border: 2px solid var(--panel);
+  border-radius: 10px; padding: 7px;
+  display: flex; flex-direction: column; gap: 5px;
+  animation: slideIn .3s ease;
+}
+.ticket.expiring { border-color: var(--red); }
+.ticket.removing { animation: slideOut .3s ease forwards; pointer-events: none; }
+@keyframes slideIn { from{opacity:0;transform:translateY(-16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(-24px)} }
+
+.ticket-hdr { display: flex; align-items: center; gap: 6px; font-size: .72rem; color: var(--muted); }
+.patience-track { flex:1; height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.patience-fill { height: 100%; border-radius: 2px; transition: background-color .6s; }
+.patience-fill.g { background: var(--green); }
+.patience-fill.y { background: var(--yellow); }
+.patience-fill.r { background: var(--red); }
+
+.dish-row { display: flex; align-items: center; gap: 4px; font-size: .8rem; padding: 1px 0; flex-wrap: wrap; }
+.dish-row.done { opacity: .45; text-decoration: line-through; }
+.comp-box {
+  width: 17px; height: 17px; border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .65rem;
+}
+.comp-box.needed { border: 1px dashed var(--muted); }
+.comp-box.matched { background: var(--green); }
+
+.send-btn {
+  width: 100%; padding: 5px; border: none; border-radius: 6px;
+  font-size: .75rem; font-weight: 700; cursor: not-allowed;
+  background: var(--panel); color: var(--muted); transition: all .2s;
+}
+.send-btn.active {
+  background: var(--green); color: #fff; cursor: pointer;
+  animation: pulse-btn 1.8s infinite;
+}
+.send-btn.active:hover { background: #2ecc71; transform: scale(1.02); }
+@keyframes pulse-btn { 0%,100%{box-shadow:0 0 0 0 rgba(39,174,96,.45)} 60%{box-shadow:0 0 0 5px rgba(39,174,96,0)} }
+
+/* ── STATIONS ROW ─────────────────────────── */
+#stations-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) 1.4fr;
+  gap: 5px; min-height: 0; overflow: hidden;
+}
+
+.station {
+  background: var(--surface); border-radius: 8px;
+  padding: 7px; display: flex; flex-direction: column; gap: 5px;
+  border: 1px solid rgba(255,255,255,.06); transition: border-color .2s;
+}
+.station.highlight { border-color: var(--amber) !important; background: rgba(245,166,35,.04); }
+
+.station-hdr {
+  font-size: .8rem; font-weight: 600;
+  padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.07);
+  display: flex; align-items: center; gap: 5px;
+}
+#station-grill { border-color: rgba(204,51,0,.3); }
+#station-saute { border-color: rgba(232,122,0,.3); }
+#station-fryer { border-color: rgba(200,147,0,.3); }
+#station-salad { border-color: rgba(45,140,78,.3); }
+#station-grill .station-hdr { color: #ff7755; }
+#station-saute .station-hdr { color: #ffaa55; }
+#station-fryer .station-hdr { color: #ffcc44; }
+#station-salad .station-hdr { color: #55cc77; }
+
+.station-slots { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+.slot {
+  flex: 1; min-height: 34px; border-radius: 6px;
+  border: 1.5px dashed rgba(255,255,255,.12);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  cursor: default; font-size: .75rem;
+  transition: border-color .2s, background .2s;
+}
+.slot.empty { color: rgba(255,255,255,.18); }
+.slot.drop-target { border-color: var(--amber) !important; background: rgba(245,166,35,.09) !important; }
+.slot.cooking { border-style: solid; border-color: rgba(255,255,255,.25); }
+.slot.ready {
+  border-color: var(--green); background: rgba(39,174,96,.1);
+  cursor: grab; animation: pulse-slot 2s infinite;
+}
+.slot.ready:active { cursor: grabbing; }
+.slot.burned { border-color: var(--red); background: rgba(231,76,60,.14); cursor: pointer; }
+@keyframes pulse-slot { 0%,100%{box-shadow:0 0 0 0 rgba(39,174,96,.35)} 50%{box-shadow:0 0 0 4px rgba(39,174,96,0)} }
+
+.slot-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.slot-emoji { font-size: 1.15rem; line-height: 1; }
+.slot-tag { font-size: .52rem; color: var(--muted); }
+.slot-tag.green { color: var(--green); }
+.slot-tag.red { color: var(--red); }
+
+.prog-track { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,.08); }
+.prog-fill { height: 100%; transition: background-color .5s; background: var(--amber); }
+.prog-fill.full { background: var(--green); }
+.prog-fill.warn { background: var(--red); }
+
+/* ── PLATING AREA ─────────────────────────── */
+#plating-area {
+  background: var(--surface); border-radius: 8px;
+  padding: 7px; display: flex; flex-direction: column; gap: 5px;
+  border: 1px solid rgba(100,60,180,.35); transition: border-color .2s, background .2s;
+}
+#plating-area.highlight { border-color: var(--amber); background: rgba(245,166,35,.04); }
+.plating-hdr { font-size: .8rem; font-weight: 600; color: #b090ff; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.plating-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 3px; flex: 1; }
+
+.pslot {
+  aspect-ratio: 1; border-radius: 5px;
+  border: 1.5px dashed rgba(255,255,255,.1);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 1rem; transition: all .2s; position: relative;
+}
+.pslot.drop-target { border-color: var(--amber); background: rgba(245,166,35,.1); }
+.pslot.occ { border-style: solid; border-color: rgba(150,110,240,.4); background: rgba(100,60,180,.12); cursor: pointer; }
+.pslot.occ:hover { border-color: var(--red); }
+.pslot.mtch { border-color: var(--green); background: rgba(39,174,96,.14); cursor: pointer; }
+.pslot.mtch:hover { border-color: var(--red); }
+.pslot .pslot-sub { font-size: .48rem; color: var(--muted); text-align: center; line-height: 1.2; }
+
+/* ── INGREDIENT SHELF ─────────────────────── */
+#ingredient-shelf {
+  background: var(--surface); border-radius: 8px;
+  padding: 6px 10px; border: 1px solid var(--panel);
+  display: flex; align-items: center; gap: 8px; overflow-x: auto;
+}
+#ingredient-shelf::-webkit-scrollbar { height: 3px; }
+#ingredient-shelf::-webkit-scrollbar-thumb { background: var(--panel); }
+.shelf-label { font-size: .65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; flex-shrink: 0; }
+
+.token {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 5px 9px; background: var(--bg);
+  border: 1.5px solid rgba(255,255,255,.13);
+  border-radius: 7px; cursor: grab; flex-shrink: 0;
+  transition: transform .1s, border-color .2s, background .2s;
+}
+.token:hover { border-color: var(--amber); background: rgba(245,166,35,.06); }
+.token:active { cursor: grabbing; transform: scale(.93); }
+.token.dragging { opacity: .35; }
+.token .te { font-size: 1.3rem; line-height: 1; }
+.token .tn { font-size: .58rem; color: var(--muted); }
+.token .th { font-size: .53rem; color: var(--amber); opacity: .75; }
+
+/* ── DRAG GHOST ─────────────────────────── */
+#drag-ghost {
+  position: fixed; pointer-events: none; z-index: 9999;
+  font-size: 2rem; transform: translate(-50%,-50%);
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.6)); display: none;
+}
+
+/* ── FLOATING TEXT ─────────────────────────── */
+.float-txt {
+  position: fixed; pointer-events: none;
+  font-weight: 700; font-size: 1rem; z-index: 9998;
+  animation: floatUp 1.4s ease forwards;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6);
+}
+@keyframes floatUp { 0%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-55px) scale(1.25)} }
+
+/* ── IN-GAME RECIPE PANEL ─────────────────── */
+#recipe-panel {
+  position: fixed; top: 52px; right: 8px; z-index: 60;
+  background: var(--surface); border: 1px solid var(--panel);
+  border-radius: 10px; padding: 10px 14px; width: 196px;
+  font-size: .73rem; box-shadow: 0 4px 20px rgba(0,0,0,.5);
+}
+#recipe-panel h4 { color: var(--amber); margin-bottom: 7px; font-size: .78rem; }
+#recipe-panel .rp { margin-bottom: 5px; line-height: 1.55; }
+#recipe-panel .rp strong { color: var(--text); }
+#recipe-panel .rp span { color: var(--muted); }
+
+/* ── RESPONSIVE ─────────────────────────── */
+@media (max-width: 680px) {
+  #stations-row { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+  #plating-area { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="screen-start" class="screen">
+  <h1>${getSVGSpan("saute")} Line Cook</h1>
+  <p class="subtitle">Manage the dinner rush — cook to order, plate up fast, and don't let anything burn.</p>
+  <div class="recipe-ref">
+    <h3>📋 Recipe Guide</h3>
+    <div class="recipe-grid">
+      <div class="recipe-item"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="3" rx="5" ry="1.5" fill="#D4A574"/><rect x="4" y="4" width="8" height="1.5" fill="#D2691E" opacity="0.8"/><rect x="4" y="5.5" width="8" height="1.5" fill="#FFD700" opacity="0.7"/><rect x="4" y="7" width="8" height="1.5" fill="#8B4513" opacity="0.8"/><ellipse cx="8" cy="12" rx="5" ry="1.5" fill="#D4A574"/></svg></span> <strong>Burger</strong><br><span class="hint">Patty → <span class="sg">Grill</span> (8s)</span></div>
+      <div class="recipe-item"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="2" width="2" height="10" fill="#FDB462" opacity="0.9"/><rect x="7" y="1" width="2" height="11" fill="#FDB462" opacity="0.9"/><rect x="10" y="3" width="2" height="9" fill="#FDB462" opacity="0.9"/><rect x="3" y="12" width="10" height="2" rx="0.5" fill="#D4A574" opacity="0.8"/></svg></span> <strong>Fries</strong><br><span class="hint">Potatoes → <span class="sf">Fryer</span> (10s)</span></div>
+      <div class="recipe-item"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6" fill="none" stroke="#2ECC71" stroke-width="1.2"/><path d="M5 8L7 10L11 6" stroke="#2ECC71" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg></span> <strong>Caesar Salad</strong><br><span class="hint">Romaine + Dressing → <span class="sl">Salad</span></span></div>
+      <div class="recipe-item"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="8" rx="5" ry="6" fill="#D2691E" opacity="0.8"/><path d="M4 6L6 5M8 4L8 2M12 6L10 5" stroke="#8B4513" stroke-width="1" fill="none" stroke-linecap="round"/><circle cx="8" cy="10" r="0.8" fill="#8B4513" opacity="0.6"/></svg></span> <strong>Grilled Chicken</strong><br><span class="hint">Chicken → <span class="sg">Grill</span> (12s)</span></div>
+      <div class="recipe-item"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M3 6C3 4 4 2 8 2c4 0 5 2 5 4v6H3V6Z" stroke="#FFD700" stroke-width="1.2" fill="none"/><circle cx="6" cy="6" r="1.2" fill="#2ECC71" opacity="0.7"/><circle cx="10" cy="7" r="1" fill="#D2691E" opacity="0.7"/><circle cx="8" cy="9" r="0.9" fill="#FFB347" opacity="0.7"/></svg></span> <strong>Stir Fry</strong><br><span class="hint">Chicken + Veggies → <span class="ss">Sauté</span></span></div>
+      <div class="recipe-item"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="5" cy="7" rx="3" ry="2.5" fill="#FFB347" opacity="0.8"/><polygon points="7.5,6.5 9,5 9,8" fill="#FFB347"/><rect x="9" y="8" width="1.5" height="5" fill="#FDB462" opacity="0.8"/><rect x="11" y="7" width="1.5" height="6" fill="#FDB462" opacity="0.8"/></svg></span> <strong>Fish &amp; Chips</strong><br><span class="hint">Fish + Potatoes → <span class="sf">Fryer</span></span></div>
+    </div>
+  </div>
+  <p style="font-size:.8rem;color:var(--muted);max-width:440px;line-height:1.6;">
+    Drag ingredients from the shelf to the correct station. When items glow green (READY), drag them to the <strong>Plating</strong> area.
+    Once a ticket's dishes are all plated, hit <strong>SEND OUT</strong>. 3-minute round — tips depend on your speed! ⏰
+  </p>
+  <button class="btn-primary" onclick="startGame()">Start Dinner Rush</button>
+</div>
+
+<!-- END SCREEN -->
+<div id="screen-end" class="screen hidden">
+  <h1><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" fill="none" stroke="#B090FF" stroke-width="1.2"/><circle cx="8" cy="8" r="4" fill="none" stroke="#B090FF" stroke-width="0.8" opacity="0.6"/></svg></span> Service Over!</h1>
+  <div id="final-score-big" style="font-size:2.2rem;color:var(--amber);font-weight:900;"></div>
+  <div class="stat-grid">
+    <div class="stat-box"><div class="sv" id="end-dishes">0</div><div class="sl2">Dishes Served</div></div>
+    <div class="stat-box"><div class="sv" id="end-tips" style="color:#55cc77">$0</div><div class="sl2">Total Tips</div></div>
+    <div class="stat-box"><div class="sv" id="end-burned" style="color:#e74c3c">0</div><div class="sl2">Items Burned</div></div>
+    <div class="stat-box"><div class="sv" id="end-efficiency">0%</div><div class="sl2">Efficiency</div></div>
+  </div>
+  <button class="btn-primary" onclick="startGame()">Play Again</button>
+</div>
+
+<!-- GAME -->
+<div id="game" style="display:none">
+  <!-- Header -->
+  <div id="header">
+    <div class="hstat"><div class="v" id="score-display">0</div><div class="l">Score</div></div>
+    <div class="hstat"><div class="v" id="tips-display" style="color:#55cc77">$0</div><div class="l">Tips</div></div>
+    <div class="hstat"><div class="v" id="timer-display">3:00</div><div class="l">Time Left</div></div>
+    <div class="hstat"><div class="v" id="served-display">0</div><div class="l">Served</div></div>
+    <div class="hstat" id="combo-container" style="display:none"><div class="v combo-value" id="combo-display">Combo: 0</div><div class="l">Streak</div></div>
+    <button class="recipe-toggle-btn" onclick="toggleRecipePanel()">📋 Recipes</button>
+  </div>
+
+  <!-- Ticket Rail -->
+  <div id="ticket-rail">
+    <span class="rail-empty-hint">Tickets →</span>
+  </div>
+
+  <!-- Stations + Plating -->
+  <div id="stations-row">
+    <div class="station" id="station-grill"><div class="station-hdr"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M3 2L2 4v9h12V4L13 2M5 5v6M8 5v6M11 5v6" stroke="#ff7755" stroke-width="1.2" fill="none"/><path d="M4 3L6 1M8 3V1M12 3L10 1" stroke="#ff7755" stroke-width="1" fill="none"/></svg></span> Grill</div><div class="station-slots" id="slots-grill"></div></div>
+    <div class="station" id="station-saute"><div class="station-hdr"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M3 6C3 4 4 2 8 2c4 0 5 2 5 4v6H3V6Z" stroke="#ffaa55" stroke-width="1.2" fill="none"/><path d="M2 8h12v5H2Z" stroke="#ffaa55" stroke-width="1.2" fill="none"/><circle cx="6" cy="5" r="1.5" fill="#ffaa55" opacity="0.6"/><circle cx="10" cy="5" r="1.5" fill="#ffaa55" opacity="0.6"/></svg></span> Sauté</div><div class="station-slots" id="slots-saute"></div></div>
+    <div class="station" id="station-fryer"><div class="station-hdr"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="2" width="10" height="10" stroke="#ffcc44" stroke-width="1.2" fill="none"/><line x1="5" y1="7" x2="5" y2="12" stroke="#ffcc44" stroke-width="0.8"/><line x1="8" y1="7" x2="8" y2="12" stroke="#ffcc44" stroke-width="0.8"/><line x1="11" y1="7" x2="11" y2="12" stroke="#ffcc44" stroke-width="0.8"/><path d="M3 12h10" stroke="#ffcc44" stroke-width="1.2"/></svg></span> Fryer</div><div class="station-slots" id="slots-fryer"></div></div>
+    <div class="station" id="station-salad"><div class="station-hdr"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="9" r="6" stroke="#55cc77" stroke-width="1.2" fill="none"/><path d="M4 6L6 3M8 2V1M12 6L10 3" stroke="#55cc77" stroke-width="1" fill="none" stroke-linecap="round"/><line x1="6" y1="8" x2="10" y2="8" stroke="#55cc77" stroke-width="0.8" opacity="0.7"/><line x1="5" y1="11" x2="11" y2="11" stroke="#55cc77" stroke-width="0.8" opacity="0.7"/></svg></span> Salad</div><div class="station-slots" id="slots-salad"></div></div>
+    <div id="plating-area">
+      <div class="plating-hdr"><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" fill="none" stroke="#B090FF" stroke-width="1.2"/><circle cx="8" cy="8" r="4" fill="none" stroke="#B090FF" stroke-width="0.8" opacity="0.6"/></svg></span> Plating</div>
+      <div class="plating-grid" id="plating-grid"></div>
+    </div>
+  </div>
+
+  <!-- Ingredient Shelf -->
+  <div id="ingredient-shelf">
+    <span class="shelf-label">Ingredients</span>
+  </div>
+</div>
+
+<!-- In-game recipe panel (hidden until toggled) -->
+<div id="recipe-panel" style="display:none">
+  <h4>📋 Recipes</h4>
+  <div class="rp"><strong><span class="svg-icon"><svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="3" rx="5" ry="1.5" fill="#D4A574"/><rect x="4" y="4" width="8" height="1.5" fill="#D2691E" opacity="0.8"/><rect x="4" y="5.5" width="8" height="1.5" fill="#FFD700" opacity="0.7"/><rect x="4" y="7" width="8" height="1.5" fill="#8B4513" opacity="0.8"/><ellipse cx="8" cy="12" rx="5" ry="1.5" fill="#D4A574"/></svg></span> Burger</strong><br><span>Patty → <span class="sg">Grill</span> (8s, burns in 7s)</span></div>
+  <div class="rp"><strong>Fries</strong><br><span>Potatoes → <span class="sf">Fryer</span> (10s, burns in 7s)</span></div>
+  <div class="rp"><strong>Caesar</strong><br><span>Romaine + Dressing → <span class="sl">Salad</span></span></div>
+  <div class="rp"><strong>Grilled Chicken</strong><br><span>Chicken → <span class="sg">Grill</span> (12s, burns in 5s)</span></div>
+  <div class="rp"><strong>Stir Fry</strong><br><span>Chicken + Veggies → <span class="ss">Sauté</span></span></div>
+  <div class="rp"><strong>Fish &amp; Chips</strong><br><span>Fish + Potatoes → <span class="sf">Fryer</span></span></div>
+</div>
+
+<!-- Drag ghost -->
+<div id="drag-ghost"></div>
+
+<script>
+'use strict';
+
+// ============================================================
+// SVG ICON SYSTEM
+// ============================================================
+
+const SVG_ICONS = {
+  // Station icons
+  grill: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M3 2L2 4v9h12V4L13 2M5 5v6M8 5v6M11 5v6" stroke="#ff7755" stroke-width="1.2" fill="none"/><path d="M4 3L6 1M8 3V1M12 3L10 1" stroke="#ff7755" stroke-width="1" fill="none"/></svg>',
+  saute: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M3 6C3 4 4 2 8 2c4 0 5 2 5 4v6H3V6Z" stroke="#ffaa55" stroke-width="1.2" fill="none"/><path d="M2 8h12v5H2Z" stroke="#ffaa55" stroke-width="1.2" fill="none"/><circle cx="6" cy="5" r="1.5" fill="#ffaa55" opacity="0.6"/><circle cx="10" cy="5" r="1.5" fill="#ffaa55" opacity="0.6"/></svg>',
+  fryer: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="2" width="10" height="10" stroke="#ffcc44" stroke-width="1.2" fill="none"/><line x1="5" y1="7" x2="5" y2="12" stroke="#ffcc44" stroke-width="0.8"/><line x1="8" y1="7" x2="8" y2="12" stroke="#ffcc44" stroke-width="0.8"/><line x1="11" y1="7" x2="11" y2="12" stroke="#ffcc44" stroke-width="0.8"/><path d="M3 12h10" stroke="#ffcc44" stroke-width="1.2"/></svg>',
+  salad: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="9" r="6" stroke="#55cc77" stroke-width="1.2" fill="none"/><path d="M4 6L6 3M8 2V1M12 6L10 3" stroke="#55cc77" stroke-width="1" fill="none" stroke-linecap="round"/><line x1="6" y1="8" x2="10" y2="8" stroke="#55cc77" stroke-width="0.8" opacity="0.7"/><line x1="5" y1="11" x2="11" y2="11" stroke="#55cc77" stroke-width="0.8" opacity="0.7"/></svg>',
+  
+  // Ingredient icons
+  patty: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="8" rx="6" ry="4" fill="#8B4513" opacity="0.8"/><ellipse cx="8" cy="8" rx="6" ry="4" stroke="#654321" stroke-width="0.8" fill="none"/><circle cx="5" cy="6" r="1" fill="#654321" opacity="0.5"/><circle cx="9" cy="7" r="0.8" fill="#654321" opacity="0.5"/><circle cx="6" cy="10" r="0.6" fill="#654321" opacity="0.5"/></svg>',
+  chicken: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="8" rx="5" ry="6" fill="#D2691E" opacity="0.8"/><circle cx="8" cy="4" r="2.5" fill="#D2691E"/><polygon points="10,3 11,2 10,1" fill="#FFA500"/><path d="M5 13L4 15M8 14L8 16M11 13L12 15" stroke="#8B4513" stroke-width="1" fill="none"/></svg>',
+  fish: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="7" cy="8" rx="5" ry="3" fill="#FFB347" opacity="0.8"/><polygon points="12,7 14,5 14,11" fill="#FFB347"/><circle cx="10" cy="8" r="1.2" fill="#333"/><path d="M3 5L2 4M3 11L2 12" stroke="#FFB347" stroke-width="1" fill="none"/></svg>',
+  potatoes: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="9" rx="6" ry="5" fill="#D4A574" opacity="0.8"/><circle cx="5" cy="6" r="0.8" fill="#8B7355" opacity="0.6"/><circle cx="10" cy="7" r="0.6" fill="#8B7355" opacity="0.6"/><circle cx="7" cy="12" r="0.7" fill="#8B7355" opacity="0.6"/><circle cx="10" cy="11" r="0.5" fill="#8B7355" opacity="0.6"/></svg>',
+  romaine: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M5 14C5 12 6 8 8 2C10 8 11 12 11 14" stroke="#2ECC71" stroke-width="1.2" fill="none"/><path d="M4 12C4 11 5 8 8 3C11 8 12 11 12 12" stroke="#2ECC71" stroke-width="0.8" fill="none" opacity="0.7"/></svg>',
+  dressing: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="3" width="8" height="9" rx="1" fill="#F4A460" opacity="0.7"/><ellipse cx="8" cy="3" rx="4" ry="1.5" fill="#FFA500" opacity="0.8"/><line x1="5" y1="6" x2="11" y2="6" stroke="#FFFFFF" stroke-width="0.5" opacity="0.6"/><line x1="5" y1="9" x2="11" y2="9" stroke="#FFFFFF" stroke-width="0.5" opacity="0.6"/></svg>',
+  veggies: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="9" r="3" fill="#7CB342" opacity="0.8"/><circle cx="11" cy="8" r="2.5" fill="#558B2F" opacity="0.8"/><circle cx="8" cy="5" r="2" fill="#9CCC65" opacity="0.8"/><path d="M6 6V2M8 3L8 1M10 6V3" stroke="#558B2F" stroke-width="1" fill="none" stroke-linecap="round"/></svg>',
+  
+  // Dish/Recipe icons
+  burger: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="3" rx="5" ry="1.5" fill="#D4A574"/><rect x="4" y="4" width="8" height="1.5" fill="#D2691E" opacity="0.8"/><rect x="4" y="5.5" width="8" height="1.5" fill="#FFD700" opacity="0.7"/><rect x="4" y="7" width="8" height="1.5" fill="#8B4513" opacity="0.8"/><ellipse cx="8" cy="12" rx="5" ry="1.5" fill="#D4A574"/></svg>',
+  fries: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="2" width="2" height="10" fill="#FDB462" opacity="0.9"/><rect x="7" y="1" width="2" height="11" fill="#FDB462" opacity="0.9"/><rect x="10" y="3" width="2" height="9" fill="#FDB462" opacity="0.9"/><rect x="3" y="12" width="10" height="2" rx="0.5" fill="#D4A574" opacity="0.8"/></svg>',
+  caesar: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6" fill="none" stroke="#2ECC71" stroke-width="1.2"/><path d="M5 8L7 10L11 6" stroke="#2ECC71" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>',
+  grilled_chicken: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="8" cy="8" rx="5" ry="6" fill="#D2691E" opacity="0.8"/><path d="M4 6L6 5M8 4L8 2M12 6L10 5" stroke="#8B4513" stroke-width="1" fill="none" stroke-linecap="round"/><circle cx="8" cy="10" r="0.8" fill="#8B4513" opacity="0.6"/></svg>',
+  stirfry: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M3 6C3 4 4 2 8 2c4 0 5 2 5 4v6H3V6Z" stroke="#FFD700" stroke-width="1.2" fill="none"/><circle cx="6" cy="6" r="1.2" fill="#2ECC71" opacity="0.7"/><circle cx="10" cy="7" r="1" fill="#D2691E" opacity="0.7"/><circle cx="8" cy="9" r="0.9" fill="#FFB347" opacity="0.7"/></svg>',
+  fishchips: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><ellipse cx="5" cy="7" rx="3" ry="2.5" fill="#FFB347" opacity="0.8"/><polygon points="7.5,6.5 9,5 9,8" fill="#FFB347"/><rect x="9" y="8" width="1.5" height="5" fill="#FDB462" opacity="0.8"/><rect x="11" y="7" width="1.5" height="6" fill="#FDB462" opacity="0.8"/></svg>',
+  
+  // UI icons
+  explosion: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L10 6L14 7L11 10L12 14L8 12L4 14L5 10L2 7L6 6Z" fill="#E74C3C" opacity="0.9"/><circle cx="8" cy="8" r="3" fill="#F39C12" opacity="0.7"/></svg>',
+  receipt: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="2" width="8" height="12" rx="1" fill="none" stroke="#FFA500" stroke-width="1.2"/><line x1="5" y1="4" x2="11" y2="4" stroke="#FFA500" stroke-width="0.8"/><line x1="5" y1="6" x2="11" y2="6" stroke="#FFA500" stroke-width="0.8"/><line x1="5" y1="8" x2="9" y2="8" stroke="#FFA500" stroke-width="0.8"/><line x1="5" y1="10" x2="10" y2="10" stroke="#FFA500" stroke-width="0.8"/></svg>',
+  check: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M4 8L7 11L12 5" stroke="#27ae60" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  plate: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="6.5" fill="none" stroke="#B090FF" stroke-width="1.2"/><circle cx="8" cy="8" r="4" fill="none" stroke="#B090FF" stroke-width="0.8" opacity="0.6"/></circle></svg>',
+  timer: () => '<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M6 2h4v1H6Z" fill="#f5a623"/><circle cx="8" cy="9" r="5.5" fill="none" stroke="#f5a623" stroke-width="1.2"/><path d="M8 6V9L10 10.5" stroke="#f5a623" stroke-width="1" fill="none" stroke-linecap="round"/></svg>',
+};
+
+function renderSVG(name) {
+  const fn = SVG_ICONS[name];
+  return fn ? fn() : '?';
+}
+
+function getSVGSpan(name) {
+  return '<span class="svg-icon">' + renderSVG(name) + '</span>';
+}
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const STATION_CONFIG = {
+  grill: { name: 'Grill', emoji: SVG_ICONS.grill, slots: 3 },
+  saute: { name: 'Sauté', emoji: SVG_ICONS.saute, slots: 2 },
+  fryer: { name: 'Fryer', emoji: SVG_ICONS.fryer, slots: 2 },
+  salad: { name: 'Salad', emoji: SVG_ICONS.salad, slots: 2 },
+};
+
+const INGREDIENTS = {
+  patty:    { name: 'Beef Patty', emoji: SVG_ICONS.patty },
+  chicken:  { name: 'Chicken',    emoji: SVG_ICONS.chicken },
+  fish:     { name: 'Fish',       emoji: SVG_ICONS.fish },
+  potatoes: { name: 'Potatoes',   emoji: SVG_ICONS.potatoes },
+  romaine:  { name: 'Romaine',    emoji: SVG_ICONS.romaine },
+  dressing: { name: 'Dressing',   emoji: SVG_ICONS.dressing },
+  veggies:  { name: 'Veggies',    emoji: SVG_ICONS.veggies },
+};
+
+const RECIPES = {
+  burger: {
+    name: 'Burger', emoji: SVG_ICONS.burger,
+    components: [
+      { ingredientId: 'patty', station: 'grill', cookTime: 7000, burnAfter: 6000 },
+    ]
+  },
+  fries: {
+    name: 'Fries', emoji: SVG_ICONS.fries,
+    components: [
+      { ingredientId: 'potatoes', station: 'fryer', cookTime: 8500, burnAfter: 6000 },
+    ]
+  },
+  caesar: {
+    name: 'Caesar Salad', emoji: SVG_ICONS.salad,
+    components: [
+      { ingredientId: 'romaine',  station: 'salad', cookTime: 4200,  burnAfter: 12000 },
+      { ingredientId: 'dressing', station: 'salad', cookTime: 2500,  burnAfter: 12000 },
+    ]
+  },
+  grilled_chicken: {
+    name: 'Grilled Chicken', emoji: SVG_ICONS.chicken,
+    components: [
+      { ingredientId: 'chicken', station: 'grill', cookTime: 10000, burnAfter: 4200 },
+    ]
+  },
+  stirfry: {
+    name: 'Stir Fry', emoji: SVG_ICONS.stirfry,
+    components: [
+      { ingredientId: 'chicken', station: 'saute', cookTime: 7000, burnAfter: 4200 },
+      { ingredientId: 'veggies', station: 'saute', cookTime: 4200, burnAfter: 7500 },
+    ]
+  },
+  fishchips: {
+    name: 'Fish & Chips', emoji: SVG_ICONS.fish,
+    components: [
+      { ingredientId: 'fish',     station: 'fryer', cookTime: 8500, burnAfter: 5000 },
+      { ingredientId: 'potatoes', station: 'fryer', cookTime: 6800,  burnAfter: 6000 },
+    ]
+  },
+};
+
+// Pre-compute which stations accept each ingredient
+const INGREDIENT_STATIONS = {};
+for (const recipe of Object.values(RECIPES)) {
+  for (const c of recipe.components) {
+    if (!INGREDIENT_STATIONS[c.ingredientId]) INGREDIENT_STATIONS[c.ingredientId] = new Set();
+    INGREDIENT_STATIONS[c.ingredientId].add(c.station);
+  }
+}
+
+const RECIPE_IDS = Object.keys(RECIPES);
+const PLATING_SLOTS = 8;
+const ROUND_MS = 180000;
+
+// Difficulty phases — ticket spawn rates and dish counts
+const PHASES = [
+  { end: 45000,    interval: 18000, min: 1, max: 1 },
+  { end: 120000,   interval: 11000, min: 1, max: 2 },
+  { end: Infinity, interval:  7000, min: 2, max: 3 },
+];
+
+// ============================================================
+// STATE
+// ============================================================
+
+let state = {};
+let idSeq = 0;
+let audioCtx = null;
+let rafId = null;
+let lastTs = null;
+
+function uid() { return ++idSeq; }
+
+function resetState() {
+  idSeq = 0;
+  state = {
+    running: true,
+    elapsed: 0,
+    score: 0, tips: 0,
+    dishesServed: 0, dishesBurned: 0, ticketsExpired: 0,
+    nextTicketIn: 3500,
+    tickets: [],
+    stationSlots: {
+      grill: Array(3).fill(null),
+      saute: Array(2).fill(null),
+      fryer: Array(2).fill(null),
+      salad: Array(2).fill(null),
+    },
+    platingSlots: Array(PLATING_SLOTS).fill(null),
+    drag: { active: false, type: null, ingredientId: null, srcStation: null, srcIdx: null },
+    comboCount: 0,
+    lastSendOutTime: null,
+    comboActive: false,
+    comboTimeout: null,
+    _completionsDirty: true,
+    _completionsCache: null,
+  };
+}
+
+// ============================================================
+// AUDIO
+// ============================================================
+
+function initAudio() {
+  if (audioCtx) return;
+  try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+
+function playTone(freq, type, vol, dur, freqRamp) {
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type = type || 'sine';
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(freq, now);
+    if (freqRamp) osc.frequency.exponentialRampToValueAtTime(freqRamp, now + dur);
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.start(now); osc.stop(now + dur);
+  } catch(e) {}
+}
+
+function playSound(type) {
+  if (!audioCtx) return;
+  switch (type) {
+    case 'drop':    playTone(420, 'sine', .07, .09, 300); break;
+    case 'ready':
+      playTone(880, 'sine', .1, .08);
+      setTimeout(() => playTone(1100, 'sine', .1, .25), 80);
+      break;
+    case 'burn':    playTone(200, 'sawtooth', .14, .5, 80); break;
+    case 'expire':  playTone(200, 'square',   .1,  .5, 130); break;
+    case 'ticket':  playTone(550, 'sine', .08, .08); setTimeout(() => playTone(660, 'sine', .08, .15), 80); break;
+    case 'send':
+      [660, 880, 1100].forEach((f, i) => setTimeout(() => playTone(f, 'sine', .14, .18), i * 100));
+      break;
+    case 'plated':  playTone(660, 'sine', .08, .12); break;
+  }
+}
+
+// ============================================================
+// TICKET SYSTEM
+// ============================================================
+
+function getPhase() {
+  return PHASES.find(p => state.elapsed < p.end) || PHASES[PHASES.length - 1];
+}
+
+function spawnTicket() {
+  if (state.tickets.length >= 4) return;
+  const phase = getPhase();
+  const numDishes = phase.min + Math.floor(Math.random() * (phase.max - phase.min + 1));
+
+  const dishes = Array.from({ length: numDishes }, () => ({
+    recipeId: RECIPE_IDS[Math.floor(Math.random() * RECIPE_IDS.length)],
+    status: 'pending',
+  }));
+
+  const patience = 26000 + numDishes * 10500;
+  const ticket = { id: uid(), dishes, patience, maxPatience: patience };
+  state.tickets.push(ticket);
+  state._completionsDirty = true;
+
+  renderNewTicket(ticket);
+  playSound('ticket');
+}
+
+function updateTickets(dt) {
+  for (let i = state.tickets.length - 1; i >= 0; i--) {
+    const t = state.tickets[i];
+    t.patience -= dt;
+    if (t.patience <= 0) {
+      expireTicket(t, i);
+    } else {
+      // Update patience bar only (no DOM rebuild needed)
+      const el = document.getElementById(`ticket-${t.id}`);
+      if (el) {
+        const pct = Math.max(0, t.patience / t.maxPatience) * 100;
+        const fill = el.querySelector('.patience-fill');
+        if (fill) {
+          fill.style.width = pct + '%';
+          fill.className = 'patience-fill ' + (pct > 55 ? 'g' : pct > 25 ? 'y' : 'r');
+        }
+        if (pct < 20) el.classList.add('expiring');
+        else          el.classList.remove('expiring');
+      }
+    }
+  }
+}
+
+function expireTicket(ticket, idx) {
+  state.tickets.splice(idx, 1);
+  state.ticketsExpired++;
+  state.score = Math.max(0, state.score - 20);
+  state._completionsDirty = true;
+
+  const el = document.getElementById(`ticket-${ticket.id}`);
+  if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 320); }
+
+  showFloatAt('-20', '#e74c3c', document.getElementById('ticket-rail'));
+  playSound('expire');
+  updateHUD();
+}
+
+// ============================================================
+// STATION / COOK SYSTEM
+// ============================================================
+
+function updateStations(dt) {
+  for (const [sid, slots] of Object.entries(state.stationSlots)) {
+    for (let i = 0; i < slots.length; i++) {
+      const item = slots[i];
+      if (!item) continue;
+
+      if (item.state === 'cooking') {
+        item.cookElapsed += dt;
+        item.cookProgress = Math.min(1, item.cookElapsed / item.cookTime);
+        if (item.cookProgress >= 1) {
+          item.state = 'ready';
+          item.burnElapsed = 0;
+          renderSlot(sid, i);
+          playSound('ready');
+        } else {
+          // Fast-path: just update the progress bar width
+          const bar = document.querySelector(`#slot-${sid}-${i} .prog-fill`);
+          if (bar) bar.style.width = (item.cookProgress * 100) + '%';
+        }
+      } else if (item.state === 'ready') {
+        item.burnElapsed += dt;
+        const burnRatio = item.burnElapsed / item.burnAfter;
+        const bar = document.querySelector(`#slot-${sid}-${i} .prog-fill`);
+        if (bar) {
+          bar.style.width = (burnRatio * 100) + '%';
+          bar.className = 'prog-fill' + (burnRatio > 0.7 ? ' warn' : ' full');
+        }
+        if (burnRatio >= 1) {
+          item.state = 'burned';
+          state.dishesBurned++;
+          renderSlot(sid, i);
+          playSound('burn');
+          showFloatAt(' Burned!' /* with explosion icon */, '#e74c3c', document.getElementById(`slot-${sid}-${i}`));
+        }
+      }
+    }
+  }
+}
+
+// ============================================================
+// COMPLETION ENGINE
+// ============================================================
+
+function getCompletions() {
+  if (!state._completionsDirty && state._completionsCache) return state._completionsCache;
+
+  const result = {};
+  const globalUsed = new Set();
+
+  for (const ticket of state.tickets) {
+    result[ticket.id] = {};
+    for (let di = 0; di < ticket.dishes.length; di++) {
+      const dish = ticket.dishes[di];
+      if (dish.status === 'plated') {
+        result[ticket.id][di] = { complete: true, slots: [] };
+        continue;
+      }
+      const recipe = RECIPES[dish.recipeId];
+      const matched = [];
+      const localUsed = new Set();
+      let ok = true;
+
+      for (const comp of recipe.components) {
+        const si = state.platingSlots.findIndex((item, idx) =>
+          item &&
+          !globalUsed.has(idx) && !localUsed.has(idx) &&
+          item.ingredientId === comp.ingredientId &&
+          item.cookedAtStation === comp.station
+        );
+        matched.push(si >= 0 ? si : null);
+        if (si >= 0) localUsed.add(si); else ok = false;
+      }
+
+      result[ticket.id][di] = { complete: ok, slots: matched };
+      if (ok) matched.forEach(si => globalUsed.add(si));
+    }
+  }
+
+  state._completionsDirty = false;
+  state._completionsCache = result;
+  return result;
+}
+
+function isTicketSendable(ticketId) {
+  const c = getCompletions();
+  const ticket = state.tickets.find(t => t.id === ticketId);
+  if (!ticket || !c[ticketId]) return false;
+  return ticket.dishes.every((_, i) => c[ticketId][i]?.complete);
+}
+
+// ============================================================
+// PLATING / SEND OUT
+// ============================================================
+
+function handleSendOut(ticketId) {
+  if (!isTicketSendable(ticketId)) return;
+
+  const ticket = state.tickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+
+  const c = getCompletions();
+  const tc = c[ticketId];
+
+  const patienceRatio = ticket.patience / ticket.maxPatience;
+  let pts = ticket.dishes.length * 100 + (patienceRatio > 0.5 ? ticket.dishes.length * 50 : 0);
+  let tip = Math.max(1, Math.ceil(patienceRatio * 5 * ticket.dishes.length));
+
+  // ── COMBO SYSTEM ──
+  const now = performance.now();
+  const timeSinceLastSendOut = state.lastSendOutTime === null ? Infinity : now - state.lastSendOutTime;
+  const COMBO_WINDOW = 25000; // 25 seconds in ms
+  let comboTriggered = false;
+
+  if (timeSinceLastSendOut <= COMBO_WINDOW) {
+    state.comboCount++;
+    if (state.comboCount >= 2 && !state.comboActive) {
+      state.comboActive = true;
+      comboTriggered = true;
+    }
+  } else {
+    state.comboCount = 1;
+    state.comboActive = false;
+  }
+
+  // Apply 1.5× multiplier if combo is active
+  if (state.comboActive) {
+    pts = Math.round(pts * 1.5);
+    tip = Math.round(tip * 1.5);
+  }
+
+  // Clear old timeout and set new one
+  if (state.comboTimeout) clearTimeout(state.comboTimeout);
+  state.comboTimeout = setTimeout(() => {
+    state.comboCount = 0;
+    state.comboActive = false;
+  }, COMBO_WINDOW);
+
+  state.lastSendOutTime = now;
+
+  // Free matched plating slots
+  Object.values(tc).forEach(d => {
+    (d.slots || []).forEach(si => { if (si !== null) state.platingSlots[si] = null; });
+  });
+
+  state.score += pts;
+  state.tips += tip;
+  state.dishesServed += ticket.dishes.length;
+  state.tickets = state.tickets.filter(t => t.id !== ticketId);
+  state._completionsDirty = true;
+
+  const el = document.getElementById(`ticket-${ticketId}`);
+  if (el) { el.classList.add('removing'); setTimeout(() => el.remove(), 320); }
+
+  const rail = document.getElementById('ticket-rail');
+  const rb = rail.getBoundingClientRect();
+  showFloatAtXY(`+$${tip}`, '#55cc77', rb.left + 60, rb.top + 20);
+  showFloatAtXY(`+${pts}pts`, '#f5a623', rb.left + 60, rb.top + 42);
+
+  if (comboTriggered) {
+    showFloatAtXY('COMBO ×1.5!', '#f39c12', rb.left + 60, rb.top - 10);
+  }
+
+  playSound('send');
+  renderPlating();
+  updateHUD();
+}
+
+// ============================================================
+// DRAG SYSTEM
+// ============================================================
+
+const ghost = document.getElementById('drag-ghost');
+
+function startDrag(type, ingredientId, srcStation, srcIdx, x, y) {
+  state.drag = { active: true, type, ingredientId, srcStation, srcIdx };
+  ghost.innerHTML = getSVGSpan(ingredientId);
+  ghost.style.display = 'block';
+  ghost.style.left = x + 'px';
+  ghost.style.top  = y + 'px';
+  if (type === 'shelf') {
+    const tok = document.querySelector(`.token[data-ing="${ingredientId}"]`);
+    if (tok) tok.classList.add('dragging');
+  }
+  highlightTargets();
+}
+
+function moveDrag(x, y) {
+  if (!state.drag.active) return;
+  ghost.style.left = x + 'px';
+  ghost.style.top  = y + 'px';
+}
+
+function endDrag(x, y) {
+  if (!state.drag.active) { clearDrag(); return; }
+  const target = findDropTarget(x, y);
+  if (target) {
+    if (state.drag.type === 'shelf' && target.type === 'slot') {
+      placeOnStation(state.drag.ingredientId, target.sid, target.idx);
+    } else if (state.drag.type === 'station' && target.type === 'plating') {
+      placeOnPlating(state.drag.srcStation, state.drag.srcIdx);
+    }
+  }
+  clearDrag();
+}
+
+function clearDrag() {
+  state.drag.active = false;
+  ghost.style.display = 'none';
+  document.querySelectorAll('.token.dragging').forEach(t => t.classList.remove('dragging'));
+  clearHighlights();
+}
+
+function highlightTargets() {
+  const { type, ingredientId } = state.drag;
+  if (type === 'shelf') {
+    const validStations = INGREDIENT_STATIONS[ingredientId] || new Set();
+    for (const sid of Object.keys(state.stationSlots)) {
+      if (!validStations.has(sid)) continue;
+      document.getElementById(`station-${sid}`)?.classList.add('highlight');
+      state.stationSlots[sid].forEach((slot, i) => {
+        if (!slot) document.querySelector(`#slot-${sid}-${i}`)?.classList.add('drop-target');
+      });
+    }
+  } else if (type === 'station') {
+    document.getElementById('plating-area')?.classList.add('highlight');
+    state.platingSlots.forEach((s, i) => {
+      if (!s) document.querySelector(`.pslot[data-i="${i}"]`)?.classList.add('drop-target');
+    });
+  }
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.station.highlight').forEach(e => e.classList.remove('highlight'));
+  document.querySelectorAll('.slot.drop-target').forEach(e => e.classList.remove('drop-target'));
+  document.querySelectorAll('.pslot.drop-target').forEach(e => e.classList.remove('drop-target'));
+  document.getElementById('plating-area')?.classList.remove('highlight');
+}
+
+function findDropTarget(x, y) {
+  if (state.drag.type === 'shelf') {
+    for (const [sid, slots] of Object.entries(state.stationSlots)) {
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i]) continue;
+        const el = document.getElementById(`slot-${sid}-${i}`);
+        if (el && hitTest(x, y, el)) return { type: 'slot', sid, idx: i };
+      }
+    }
+  } else if (state.drag.type === 'station') {
+    const pa = document.getElementById('plating-area');
+    if (pa && hitTest(x, y, pa)) {
+      const emptyIdx = state.platingSlots.findIndex(s => s === null);
+      if (emptyIdx >= 0) return { type: 'plating', idx: emptyIdx };
+    }
+  }
+  return null;
+}
+
+function hitTest(x, y, el) {
+  const r = el.getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+// ============================================================
+// STATION ACTIONS
+// ============================================================
+
+function placeOnStation(ingredientId, stationId, slotIdx) {
+  if (state.stationSlots[stationId][slotIdx] !== null) return;
+  const validStations = INGREDIENT_STATIONS[ingredientId];
+  if (!validStations?.has(stationId)) return;
+
+  // Find cook/burn times from the relevant recipe component
+  let cookTime = 8000, burnAfter = 7000;
+  for (const recipe of Object.values(RECIPES)) {
+    const comp = recipe.components.find(c => c.ingredientId === ingredientId && c.station === stationId);
+    if (comp) { cookTime = comp.cookTime; burnAfter = comp.burnAfter; break; }
+  }
+
+  state.stationSlots[stationId][slotIdx] = {
+    id: uid(), ingredientId, stationId,
+    state: 'cooking', cookProgress: 0, cookElapsed: 0,
+    cookTime, burnAfter, burnElapsed: 0,
+  };
+  renderSlot(stationId, slotIdx);
+  playSound('drop');
+}
+
+function placeOnPlating(stationId, slotIdx) {
+  const item = state.stationSlots[stationId]?.[slotIdx];
+  if (!item || item.state !== 'ready') return;
+  const emptyIdx = state.platingSlots.findIndex(s => s === null);
+  if (emptyIdx < 0) return;
+
+  state.platingSlots[emptyIdx] = {
+    id: item.id, ingredientId: item.ingredientId, cookedAtStation: item.stationId,
+  };
+  state.stationSlots[stationId][slotIdx] = null;
+  state._completionsDirty = true;
+
+  renderSlot(stationId, slotIdx);
+  renderPlating();
+  renderAllTickets();
+  playSound('plated');
+}
+
+function removePlatedItem(slotIdx) {
+  const item = state.platingSlots[slotIdx];
+  if (!item) return;
+  
+  const ing = INGREDIENTS[item.ingredientId];
+  state.platingSlots[slotIdx] = null;
+  state._completionsDirty = true;
+  
+  const el = document.querySelector(`.pslot[data-i="${slotIdx}"]`);
+  showFloatAt(`${ing.name} removed`, '#f5a623', el);
+  
+  renderPlating();
+  renderAllTickets();
+}
+
+
+function clearBurned(stationId, slotIdx) {
+  const item = state.stationSlots[stationId]?.[slotIdx];
+  if (!item || item.state !== 'burned') return;
+  state.stationSlots[stationId][slotIdx] = null;
+  renderSlot(stationId, slotIdx);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+
+function buildShelf() {
+  const shelf = document.getElementById('ingredient-shelf');
+  shelf.querySelectorAll('.token').forEach(e => e.remove());
+
+  for (const [id, ing] of Object.entries(INGREDIENTS)) {
+    const stations = INGREDIENT_STATIONS[id] || new Set();
+    const stationIcons = { 
+    grill: getSVGSpan('grill'), 
+    saute: getSVGSpan('saute'), 
+    fryer: getSVGSpan('fryer'), 
+    salad: getSVGSpan('salad') 
+  };
+    const hints = [...stations].map(s => stationIcons[s] || s).join(' ');
+
+    const el = document.createElement('div');
+    el.className = 'token';
+    el.dataset.ing = id;
+    el.innerHTML = `<span class="te">${getSVGSpan(id)}</span><span class="tn">${ing.name}</span><span class="th">${hints}</span>`;
+
+    el.addEventListener('mousedown', e => { e.preventDefault(); initAudio(); startDrag('shelf', id, null, null, e.clientX, e.clientY); });
+    el.addEventListener('touchstart', e => { e.preventDefault(); initAudio(); const t = e.touches[0]; startDrag('shelf', id, null, null, t.clientX, t.clientY); }, { passive: false });
+    shelf.appendChild(el);
+  }
+}
+
+function buildStationSlots() {
+  for (const [sid, cfg] of Object.entries(STATION_CONFIG)) {
+    const container = document.getElementById(`slots-${sid}`);
+    container.innerHTML = '';
+    for (let i = 0; i < cfg.slots; i++) {
+      const el = document.createElement('div');
+      el.className = 'slot empty';
+      el.id = `slot-${sid}-${i}`;
+      el.dataset.idx = i;
+      el.innerHTML = `<span style="font-size:.68rem;opacity:.2">empty</span>`;
+
+      el.addEventListener('click', () => {
+        const item = state.stationSlots[sid]?.[i];
+        if (item?.state === 'burned') clearBurned(sid, i);
+      });
+      el.addEventListener('mousedown', e => {
+        const item = state.stationSlots[sid]?.[i];
+        if (!item || item.state !== 'ready') return;
+        e.preventDefault(); initAudio();
+        startDrag('station', item.ingredientId, sid, i, e.clientX, e.clientY);
+      });
+      el.addEventListener('touchstart', e => {
+        const item = state.stationSlots[sid]?.[i];
+        if (!item || item.state !== 'ready') return;
+        e.preventDefault(); initAudio();
+        const t = e.touches[0];
+        startDrag('station', item.ingredientId, sid, i, t.clientX, t.clientY);
+      }, { passive: false });
+
+      container.appendChild(el);
+    }
+  }
+}
+
+function buildPlatingGrid() {
+  const grid = document.getElementById('plating-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < PLATING_SLOTS; i++) {
+    const el = document.createElement('div');
+    el.className = 'pslot';
+    el.dataset.i = i;
+    
+    // Right-click to remove plated item
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (state.drag?.active) return;
+      removePlatedItem(i);
+    });
+    
+    // Touch long-press (1.5s) to remove on mobile
+    let touchTimer = null;
+    el.addEventListener('touchstart', e => {
+      if (state.drag?.active || !state.platingSlots[i]) return;
+      touchTimer = setTimeout(() => {
+        removePlatedItem(i);
+        playSound('drop');
+      }, 1500);
+    }, { passive: true });
+    
+    el.addEventListener('touchend', () => {
+      if (touchTimer) clearTimeout(touchTimer);
+    }, { passive: true });
+    
+    grid.appendChild(el);
+  }
+}
+
+function renderSlot(sid, idx) {
+  const el = document.getElementById(`slot-${sid}-${idx}`);
+  if (!el) return;
+  const item = state.stationSlots[sid][idx];
+  el.style.background = '';
+
+  if (!item) {
+    el.className = 'slot empty';
+    el.innerHTML = `<span style="font-size:.68rem;opacity:.2">empty</span>`;
+    return;
+  }
+  const ing = INGREDIENTS[item.ingredientId];
+  if (item.state === 'cooking') {
+    el.className = 'slot cooking';
+    el.innerHTML = `
+      <div class="slot-inner">${getSVGSpan(item.ingredientId)}<span class="slot-tag">cooking…</span></div>
+      <div class="prog-track"><div class="prog-fill" style="width:${item.cookProgress * 100}%"></div></div>`;
+  } else if (item.state === 'ready') {
+    el.className = 'slot ready';
+    el.innerHTML = `
+      <div class="slot-inner">${getSVGSpan(item.ingredientId)}<span class="slot-tag green">READY</span></div>
+      <div class="prog-track"><div class="prog-fill full" style="width:0%"></div></div>`;
+  } else if (item.state === 'burned') {
+    el.className = 'slot burned';
+    el.innerHTML = `<div class="slot-inner">${getSVGSpan("explosion")}<span class="slot-tag red">tap to clear</span></div>`;
+  }
+}
+
+function renderPlating() {
+  const completions = getCompletions();
+  const matchedSlots = new Set();
+  for (const tc of Object.values(completions)) {
+    for (const dc of Object.values(tc)) {
+      if (dc.complete) dc.slots.forEach(si => { if (si !== null) matchedSlots.add(si); });
+    }
+  }
+
+  for (let i = 0; i < PLATING_SLOTS; i++) {
+    const el = document.querySelector(`.pslot[data-i="${i}"]`);
+    if (!el) continue;
+    const item = state.platingSlots[i];
+    if (!item) {
+      el.className = 'pslot'; el.innerHTML = '';
+    } else {
+      const ing = INGREDIENTS[item.ingredientId];
+      const cls = matchedSlots.has(i) ? 'pslot mtch' : 'pslot occ';
+      // Find which ticket/dish this is assigned to
+      let sublabel = '';
+      outer: for (const ticket of state.tickets) {
+        const tc = completions[ticket.id];
+        if (!tc) continue;
+        for (let di = 0; di < ticket.dishes.length; di++) {
+          const dc = tc[di];
+          if (dc && dc.slots.includes(i)) {
+            sublabel = RECIPES[ticket.dishes[di].recipeId].name.split(' ')[0];
+            break outer;
+          }
+        }
+      }
+      el.className = cls;
+      el.innerHTML = `<span>${getSVGSpan(item.ingredientId)}</span>${sublabel ? `<span class="pslot-sub">${sublabel}</span>` : ''}`;
+    }
+  }
+}
+
+function renderNewTicket(ticket) {
+  const el = document.createElement('div');
+  el.className = 'ticket';
+  el.id = `ticket-${ticket.id}`;
+  document.getElementById('ticket-rail').appendChild(el);
+  refreshTicketEl(ticket, el);
+}
+
+function refreshTicketEl(ticket, el) {
+  if (!el) return;
+  const c = getCompletions();
+  const tc = c[ticket.id] || {};
+  const allDone = ticket.dishes.every((_, i) => tc[i]?.complete);
+  const pct = Math.max(0, ticket.patience / ticket.maxPatience) * 100;
+  const barCls = pct > 55 ? 'g' : pct > 25 ? 'y' : 'r';
+
+  const dishRows = ticket.dishes.map((dish, di) => {
+    const recipe = RECIPES[dish.recipeId];
+    const dc = tc[di];
+    const isDone = dc?.complete;
+    const comps = recipe.components.map((comp, ci) => {
+      const matched = dc && dc.slots[ci] !== null && dc.slots[ci] !== undefined;
+      const ing = INGREDIENTS[comp.ingredientId];
+      return `<span class="comp-box ${matched ? 'matched' : 'needed'}" title="${ing.name} @ ${comp.station}">${getSVGSpan(comp.ingredientId)}</span>`;
+    }).join('');
+    return `<div class="dish-row${isDone ? ' done' : ''}">${getSVGSpan(dish.recipeId)} ${recipe.name} ${comps}</div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ticket-hdr">
+      <span>${getSVGSpan("receipt")} #${ticket.id}</span>
+      <div class="patience-track"><div class="patience-fill ${barCls}" style="width:${pct}%"></div></div>
+    </div>
+    ${dishRows}
+    <button class="send-btn${allDone ? ' active' : ''}" onclick="handleSendOut(${ticket.id})"${allDone ? '' : ' disabled'}>
+      ${allDone ? getSVGSpan('check') + ' SEND OUT' : 'SEND OUT'}
+    </button>`;
+}
+
+function renderAllTickets() {
+  for (const ticket of state.tickets) {
+    const el = document.getElementById(`ticket-${ticket.id}`);
+    if (el) refreshTicketEl(ticket, el);
+  }
+}
+
+function updateHUD() {
+  document.getElementById('score-display').textContent = state.score;
+  document.getElementById('tips-display').textContent = '$' + state.tips;
+  document.getElementById('served-display').textContent = state.dishesServed;
+
+  const remaining = Math.max(0, ROUND_MS - state.elapsed);
+  const m = Math.floor(remaining / 60000);
+  const s = Math.floor((remaining % 60000) / 1000);
+  const timerEl = document.getElementById('timer-display');
+  timerEl.textContent = m + ':' + String(s).padStart(2, '0');
+  if (remaining < 20000) timerEl.classList.add('urgent');
+  else timerEl.classList.remove('urgent');
+
+  const comboContainer = document.getElementById('combo-container');
+  const comboDisplay = document.getElementById('combo-display');
+  if (state.comboCount > 0) {
+    comboContainer.style.display = 'flex';
+    comboDisplay.textContent = `Combo: ${state.comboCount}`;
+  } else {
+    comboContainer.style.display = 'none';
+  }
+}
+
+// ============================================================
+// FLOATING TEXT
+// ============================================================
+
+function showFloatAt(text, color, anchorEl) {
+  if (!anchorEl) return;
+  const r = anchorEl.getBoundingClientRect();
+  showFloatAtXY(text, color, r.left + r.width / 2, r.top);
+}
+
+function showFloatAtXY(text, color, x, y) {
+  const el = document.createElement('div');
+  el.className = 'float-txt';
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+  el.style.color = color;
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+
+function gameLoop(ts) {
+  if (!state.running) return;
+  const dt = lastTs === null ? 16 : Math.min(ts - lastTs, 100);
+  lastTs = ts;
+
+  state.elapsed += dt;
+  state.nextTicketIn -= dt;
+
+  if (state.nextTicketIn <= 0) {
+    spawnTicket();
+    state.nextTicketIn = getPhase().interval;
+  }
+
+  updateStations(dt);
+  updateTickets(dt);
+  updateHUD();
+
+  if (state.elapsed >= ROUND_MS) {
+    endGame();
+    return;
+  }
+
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+// ============================================================
+// SCREEN MANAGEMENT
+// ============================================================
+
+function startGame() {
+  initAudio();
+  resetState();
+  idSeq = 0;
+
+  document.getElementById('screen-start').classList.add('hidden');
+  document.getElementById('screen-end').classList.add('hidden');
+  document.getElementById('game').style.display = '';
+  document.getElementById('recipe-panel').style.display = 'none';
+
+  // Clear dynamic DOM
+  document.getElementById('ticket-rail').innerHTML = '<span class="rail-empty-hint">Tickets →</span>';
+  buildShelf();
+  buildStationSlots();
+  buildPlatingGrid();
+  renderPlating();
+  updateHUD();
+
+  if (rafId) cancelAnimationFrame(rafId);
+  lastTs = null;
+  rafId = requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+  state.running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+
+  const totalAttempted = state.dishesServed + state.dishesBurned + state.ticketsExpired;
+  const efficiency = totalAttempted > 0 ? Math.round((state.dishesServed / (state.dishesServed + state.dishesBurned + state.ticketsExpired)) * 100) : 0;
+
+  document.getElementById('final-score-big').textContent = state.score + ' pts';
+  document.getElementById('end-dishes').textContent = state.dishesServed;
+  document.getElementById('end-tips').textContent = '$' + state.tips;
+  document.getElementById('end-burned').textContent = state.dishesBurned;
+  document.getElementById('end-efficiency').textContent = efficiency + '%';
+
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('screen-end').classList.remove('hidden');
+}
+
+function toggleRecipePanel() {
+  const p = document.getElementById('recipe-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+// ============================================================
+// GLOBAL EVENT LISTENERS
+// ============================================================
+
+document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+document.addEventListener('mouseup',   e => endDrag(e.clientX, e.clientY));
+
+document.addEventListener('touchmove', e => {
+  if (!state.drag?.active) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  moveDrag(t.clientX, t.clientY);
+}, { passive: false });
+
+document.addEventListener('touchend', e => {
+  if (!state.drag?.active) return;
+  const t = e.changedTouches[0];
+  endDrag(t.clientX, t.clientY);
+});
+
+// Dismiss recipe panel on outside click
+document.addEventListener('mousedown', e => {
+  const panel = document.getElementById('recipe-panel');
+  if (panel.style.display !== 'none' &&
+      !panel.contains(e.target) &&
+      !e.target.classList.contains('recipe-toggle-btn')) {
+    panel.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
